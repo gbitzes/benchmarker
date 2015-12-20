@@ -93,6 +93,7 @@ def main():
     quickrun("hostname", pjoin(args.results, "hostname"))
     quickrun("cat /proc/cpuinfo", pjoin(args.results, "cpuinfo"))
     quickrun("uname -a", pjoin(args.results, "kernel"))
+    quickrun("env", pjoin(args.results, "env"))
 
     if args.precommand:
         quickrun(args.precommand, pjoin(args.results, "precommand"))
