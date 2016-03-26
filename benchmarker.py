@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 from __future__ import print_function, division, absolute_import
-import argparse, os, threading, subprocess, sys, StringIO, time
+import argparse, os, threading, subprocess, sys, StringIO, time, signal
 pjoin = os.path.join
 
 __version__ = 0.1
@@ -41,21 +41,20 @@ class Runner(threading.Thread):
 
     def stopsignal(self):
         self.active = False
+        os.killpg(os.getpgid(self.proc.pid), signal.SIGTERM)
 
     def write(self, data):
         prefix = time.strftime(self.timeformat)
         self.raw_write(prefix + data)
 
     def run(self):
-        proc = subprocess.Popen(self.command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        self.proc = subprocess.Popen(self.command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, close_fds=True, preexec_fn=os.setsid)
         text = "-"
-        while (proc.poll() is None or text != "") and self.active:
-            text = proc.stdout.readline()
+        while (self.proc.poll() is None or text != ""):
+            text = self.proc.stdout.readline()
             self.write(text)
         self.raw_write("\n")
         self.file.close()
-
-        if not self.active: proc.kill()
 
 class Collector:
     def __init__(self, interval, timeformat):
