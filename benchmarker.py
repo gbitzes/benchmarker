@@ -22,6 +22,13 @@ def getargs():
     args.command = " ".join(args.command)
     return args
 
+TERMINATE = False
+def ctrlc(signal, frame):
+    print("Received ctrl-c, terminating ..")
+
+    global TERMINATE
+    TERMINATE = True
+
 class Runner(threading.Thread):
     def __init__(self, command, filename, timeformat, echo=True):
         super(Runner, self).__init__()
@@ -41,7 +48,12 @@ class Runner(threading.Thread):
 
     def stopsignal(self):
         self.active = False
-        os.killpg(os.getpgid(self.proc.pid), signal.SIGTERM)
+
+        try:
+            os.killpg(os.getpgid(self.proc.pid), signal.SIGTERM)
+        except Exception as e:
+            print("Could not kill process - already exited?")
+            print(e)
 
     def write(self, data):
         prefix = time.strftime(self.timeformat)
@@ -82,6 +94,7 @@ def quickrun(command, filename):
     Runner(command, filename, timeformat="", echo=False).run()
 
 def main():
+    signal.signal(signal.SIGINT, ctrlc)
     args = getargs()
 
     if os.path.exists(args.results):
@@ -107,7 +120,11 @@ def main():
 
     cmd = Runner(args.command, pjoin(args.results, "output"), timeformat=args.timeformat)
     cmd.start()
-    cmd.join()
+
+    while cmd.isAlive():
+        if TERMINATE:
+            cmd.stopsignal()
+        cmd.join(3)
 
     collector.stop()
 if __name__ == "__main__":
